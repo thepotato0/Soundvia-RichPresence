@@ -55,8 +55,8 @@ class App:
         except discordrpc.exceptions.DiscordNotOpened:
             logger.critical("Could not find Discord. Is Discord running? Exiting in 3 seconds.")
             self.shutdown()
-        except Exception:
-            logger.exception("Unexpected error while starting Discord presence.")
+        except Exception: 
+            logger.exception("Unexpected error while starting/updating Discord presence. Exiting in 3 seconds.")
             self.shutdown()
         except KeyboardInterrupt:
             logger.info("Shutting down.")

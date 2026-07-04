@@ -150,8 +150,6 @@ class SoundviaOAuth:
     def refresh(self, token: SoundviaToken) -> SoundviaToken:
         """
         Refresh an expired access token.
-
-        NOT CONFIRMED -- same caveat as fetch_token().
         """
         if not token.refresh_token:
             raise SoundviaAuthError("No refresh_token available on this token.")
@@ -173,10 +171,6 @@ class SoundviaOAuth:
 class SoundviaClient:
     """
     Thin wrapper for calling authenticated soundvia.eu API endpoints.
-
-    No resource endpoints are implemented yet -- none were available in the
-    docs snippet provided. Add methods here following the `_get` pattern
-    once you have real endpoint paths (e.g. get_library(), search_tracks()).
     """
 
     def __init__(self, token: SoundviaToken):
@@ -270,11 +264,6 @@ def authorize_interactive(
     IMPORTANT: `oauth.redirect_uri` must exactly match a redirect URI
     registered for your app on soundvia (e.g. "http://localhost:8888/callback"),
     including the port number.
-
-    NOTE: fetch_token() is still an unconfirmed placeholder (see its
-    docstring) -- this will run the browser + local-server dance correctly,
-    but the final token exchange will fail until /oauth/token is confirmed
-    against the real docs.
     """
     url, expected_state = oauth.authorization_url(scopes)
 
@@ -303,22 +292,3 @@ def authorize_interactive(
         raise SoundviaAuthError("No authorization code received.")
 
     return oauth.fetch_token(server.oauth_code)
-
-
-if __name__ == "__main__":
-    # Example 1: build the authorization redirect URL (confirmed flow)
-    oauth = SoundviaOAuth(
-        client_id="YOUR_CLIENT_ID",
-        client_secret="YOUR_CLIENT_SECRET",
-        redirect_uri="YOUR_REDIRECT_URI",
-    )
-    url, state = oauth.authorization_url(scopes=["user.read", "library.read","now-listening.read"])
-    print("Send the user's browser to:", url)
-    print("Store this state to verify on callback:", state)
-
-    # Example 2: call the status endpoint directly with a static app token
-    client = SoundviaClient.from_token("YOUR_APP_TOKEN")
-    status = client.get_status()
-    print(f"App '{status.app.name}' (tier={status.app.tier}, "
-          f"verification={status.app.verification_status})")
-    print(f"Rate limit: {status.app.limits.requests_per_minute} req/min")
