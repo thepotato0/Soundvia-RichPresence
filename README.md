@@ -30,3 +30,4 @@ python3 main.py
     - [x] Authorization Page
     - [x] Exchange Token
     - [ ] Now Listening  
+- [ ] Update readme
