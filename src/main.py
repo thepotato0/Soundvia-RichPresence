@@ -17,7 +17,7 @@ USER_TOKEN_CACHE = "user_token.json"
 
 
 class App:
-    def __init__(self, logging_level: int = logging.DEBUG, app_id: str = APPID, poll_interval: int = 15):
+    def __init__(self, logging_level: int = logging.INFO, app_id: str = APPID, poll_interval: int = 15):
         self.app_id = app_id
         self.poll_interval = poll_interval  # Discord rate-limits activity updates to ~1 per 15s
         self.rpc = None
@@ -47,6 +47,7 @@ class App:
             self.shutdown()
 
         self.setup_user_auth()
+        self.SVclient = SoundviaClient.from_token(self.user_token.access_token)
 
         try:
             self.start_discord_presence()
@@ -85,14 +86,12 @@ class App:
 
     def setup_user_auth(self):
         """
-        Obtains a user-level OAuth token, required for "now listening" data
-        (APP_TOKEN only proves the app itself, not a specific user).
-
         Order of preference:
           1. Reuse a cached token from disk if present and not expired.
           2. If expired but a refresh_token exists, refresh it.
           3. Otherwise, run the full interactive browser login.
         """
+
         client_id = os.getenv("CLIENT_ID")
         client_secret = os.getenv("CLIENT_SECRET")
         redirect_uri = os.getenv("REDIRECT_URI", "http://localhost:8888/callback")
@@ -120,11 +119,11 @@ class App:
                 logger.warning("Refresh failed, falling back to interactive login.")
 
         logger.info("No valid user token found -- opening browser for authorization.")
-        # Port must match whatever's registered as the redirect URI on soundvia's dashboard
+        # Port must match whatever's registered as the redirect URI on soundvia's application dashboard
         port = urlparse(redirect_uri).port or 8888
         try:
             self.user_token = authorize_interactive(
-                self.oauth, scopes=["user.read", "library.read"], port=port
+                self.oauth, scopes=["user.read", "library.read","now-listening.read"], port=port
             )
             self._save_cached_user_token(self.user_token)
         except SoundviaAuthError:
@@ -166,7 +165,22 @@ class App:
 
     def update_now_playing(self):
         # TODO fetch real now-playing info and call self.rpc.set_activity(...)
+        now_listening = self.SVclient.get_now_listening().json()
         logger.debug("Polling for now-playing data...")
+        self.rpc.set_activity(state="by Music artist",details="Music",act_type=discordrpc.Activity.Listening)
+        if now_listening["is_listening"]:
+            self.rpc.set_activity(
+                details=now_listening['title'],
+                state=f"by {now_listening['artist_name']}",
+                large_image=now_listening['cover_art'],
+                act_type=discordrpc.Activity.Listening,
+            )
+        else:
+            self.rpc.set_activity(
+                details="Idling",
+                act_type=discordrpc.Activity.Listening,
+            )
+
 
     def shutdown(self, wait_seconds: int = 3, status_code: int = 1):
         time.sleep(wait_seconds)

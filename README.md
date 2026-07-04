@@ -22,12 +22,12 @@ python3 main.py
 ```
 # Todo
 - [x] Logging
-- [ ] Discord RPC 
+- [x] Discord RPC 
     - [x] idling
-    - [ ] activity update based on now listening
-- [ ] Soundvia api
+    - [x] activity update based on now listening
+- [x] Soundvia api
     - [x] API Status
     - [x] Authorization Page
     - [x] Exchange Token
-    - [ ] Now Listening  
-- [ ] Update readme
+    - [x] Now Listening  
+- [ ] Update readme to include new usage method

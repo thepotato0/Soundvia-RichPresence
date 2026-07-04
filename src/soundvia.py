@@ -131,13 +131,7 @@ class SoundviaOAuth:
         return url, state
 
     def fetch_token(self, code: str) -> SoundviaToken:
-        """
-        Exchange an authorization code (from the callback) for an access token.
 
-        NOT CONFIRMED -- endpoint path, param names, and response shape are
-        a guess based on standard OAuth2 (RFC 6749 section 4.1.3). Update
-        this once you've pulled the actual `/oauth/token` docs page.
-        """
         resp = requests.post(
             f"{BASE_URL}/oauth/token",
             data={
@@ -232,13 +226,15 @@ class SoundviaClient:
         data = self._get("/api/v1/status")
         return StatusResponse.from_dict(data)
 
-    # --- TODO: add further resource methods here, e.g. ---
-    # def get_library(self) -> dict:
-    #     return self._get("/api/library")
-    #
-    # def search_tracks(self, query: str) -> dict:
-    #     return self._get("/api/search", params={"q": query})
-
+    def get_now_listening(self) -> requests.Response:
+        resp = requests.get(
+            f"{BASE_URL}/oauth/api/now-listening",
+            headers={
+                "Authorization": f"Bearer {self.token.access_token}",
+                "Accept": "application/json"
+            },
+        )
+        return resp
 
 class _OAuthCallbackHandler(BaseHTTPRequestHandler):
     """Captures the ?code=&state= (or ?error=) redirect from soundvia."""
@@ -316,7 +312,7 @@ if __name__ == "__main__":
         client_secret="YOUR_CLIENT_SECRET",
         redirect_uri="YOUR_REDIRECT_URI",
     )
-    url, state = oauth.authorization_url(scopes=["user.read", "library.read"])
+    url, state = oauth.authorization_url(scopes=["user.read", "library.read","now-listening.read"])
     print("Send the user's browser to:", url)
     print("Store this state to verify on callback:", state)
 
