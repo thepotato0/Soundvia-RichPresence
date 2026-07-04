@@ -3,7 +3,7 @@ Python integration of Soundvia and Discord RPC
 
 # Requirements
 
-- Python 3.7+
+- Python 3.8+
 - Discord desktop app running
 - Soundvia app and token
 
@@ -21,4 +21,12 @@ python main.py
 python3 main.py
 ```
 # Todo
-> alot
+- [x] Logging
+- [ ] Discord RPC 
+    - [x] idling
+    - [ ] activity update based on now listening
+- [ ] Soundvia api
+    - [x] API Status
+    - [x] Authorization Page
+    - [x] Exchange Token
+    - [ ] Now Listening  
