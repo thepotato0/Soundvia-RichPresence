@@ -91,7 +91,6 @@ class App:
           2. If expired but a refresh_token exists, refresh it.
           3. Otherwise, run the full interactive browser login.
         """
-
         client_id = os.getenv("CLIENT_ID")
         client_secret = os.getenv("CLIENT_SECRET")
         redirect_uri = os.getenv("REDIRECT_URI", "http://localhost:8888/callback")
@@ -119,11 +118,10 @@ class App:
                 logger.warning("Refresh failed, falling back to interactive login.")
 
         logger.info("No valid user token found -- opening browser for authorization.")
-        # Port must match whatever's registered as the redirect URI on soundvia's application dashboard
         port = urlparse(redirect_uri).port or 8888
         try:
             self.user_token = authorize_interactive(
-                self.oauth, scopes=["user.read", "library.read","now-listening.read"], port=port
+                self.oauth, scopes=["user.read", "library.read", "now-listening.read"], port=port
             )
             self._save_cached_user_token(self.user_token)
         except SoundviaAuthError:
@@ -147,7 +145,7 @@ class App:
         logger.debug("Saved user token to cache.")
 
     def start_discord_presence(self):
-        self.rpc = discordrpc.RPC(app_id=self.app_id)  # debug=True)
+        self.rpc = discordrpc.RPC(app_id=self.app_id)
         self.rpc.set_activity(
             details="Idling",
             act_type=discordrpc.Activity.Listening,
@@ -163,11 +161,50 @@ class App:
             self.update_now_playing()
             time.sleep(self.poll_interval)
 
+    def _ensure_valid_user_token(self, force: bool = False):
+        """
+        Called before any request that depends on the user token, since
+        (unlike the static APP_TOKEN) it can expire while the app is running.
+
+        force=True skips the expires_in check -- used when the server
+        rejects a request with 401 despite our token looking unexpired
+        (clock drift, or expires_in being wrong/absent).
+        """
+        if not force and not self.user_token.is_expired:
+            return
+
+        if self.user_token.refresh_token:
+            try:
+                logger.debug("User token expired (or forced), refreshing...")
+                self.user_token = self.oauth.refresh(self.user_token)
+                self._save_cached_user_token(self.user_token)
+                self.SVclient = SoundviaClient.from_token(self.user_token.access_token)
+                logger.debug("User token refreshed successfully.")
+                return
+            except SoundviaAuthError:
+                logger.warning("Refresh failed, falling back to interactive login.")
+
+        logger.info("Re-authorizing -- opening browser.")
+        port = urlparse(self.oauth.redirect_uri).port or 8888
+        self.user_token = authorize_interactive(
+            self.oauth, scopes=["user.read", "library.read", "now-listening.read"], port=port
+        )
+        self._save_cached_user_token(self.user_token)
+        self.SVclient = SoundviaClient.from_token(self.user_token.access_token)
+
     def update_now_playing(self):
-        # TODO fetch real now-playing info and call self.rpc.set_activity(...)
-        now_listening = self.SVclient.get_now_listening().json()
+        self._ensure_valid_user_token()
+        try:
+            now_listening = self.SVclient.get_now_listening().json()
+        except requests.exceptions.HTTPError as e:
+            if e.response is not None and e.response.status_code == 401:
+                logger.debug("Got 401 despite token looking valid -- forcing refresh and retrying once.")
+                self._ensure_valid_user_token(force=True)
+                now_listening = self.SVclient.get_now_listening().json()
+            else:
+                raise
+
         logger.debug("Polling for now-playing data...")
-        self.rpc.set_activity(state="by Music artist",details="Music",act_type=discordrpc.Activity.Listening)
         if now_listening["is_listening"]:
             self.rpc.set_activity(
                 details=now_listening['title'],
@@ -180,7 +217,6 @@ class App:
                 details="Idling",
                 act_type=discordrpc.Activity.Listening,
             )
-
 
     def shutdown(self, wait_seconds: int = 3, status_code: int = 1):
         time.sleep(wait_seconds)
