@@ -20,8 +20,8 @@ class App:
     def __init__(self, logging_level: int = logging.INFO, app_id: str = APPID, poll_interval: int = 15):
         self.app_id = app_id
         self.poll_interval = poll_interval  # Discord rate-limits activity updates to ~1 per 15s
-        self.rpc = None
         self.logging_level = logging_level
+        self.rpc = None
         self.APP_TOKEN = None
         self.oauth = None
         self.user_token = None
@@ -210,6 +210,7 @@ class App:
                 details=now_listening['title'],
                 state=f"by {now_listening['artist_name']}",
                 large_image=now_listening['cover_art'],
+                small_image="https://cdn.discordapp.com/app-icons/1522642631472185465/e08d3dc26698a2d6f428f71a6bda1413.png?size=256&quot",
                 act_type=discordrpc.Activity.Listening,
             )
         else:
